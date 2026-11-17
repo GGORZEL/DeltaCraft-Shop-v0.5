@@ -113,8 +113,8 @@ public final class ShopMenu extends ChestMenu {
                 }
                 return;
             }
-            if (slot == 45 && input == ContainerInput.PICKUP && button == 0) { page = Math.max(0, page - 1); render(); return; }
-            if (slot == 53 && input == ContainerInput.PICKUP && button == 0) {
+            if (slot == 48 && input == ContainerInput.PICKUP && button == 0) { page = Math.max(0, page - 1); render(); return; }
+            if (slot == 50 && input == ContainerInput.PICKUP && button == 0) {
                 if ((page + 1) * 45 < catalog.category(category).size()) page++;
                 render(); return;
             }
