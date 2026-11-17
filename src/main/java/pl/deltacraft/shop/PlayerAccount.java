@@ -24,30 +24,36 @@ public final class PlayerAccount {
 
     public String money() { return String.format(java.util.Locale.ROOT, "$%.2f", cents / 100.0); }
     
+   
     public String shortMoney() {
         double dollars = cents / 100.0;
     
         if (dollars >= 1_000_000_000) {
-            return formatShort(dollars / 1_000_000_000) + " mld";
+            return shortNumber(dollars / 1_000_000_000) + " mld";
         }
         if (dollars >= 1_000_000) {
-            return formatShort(dollars / 1_000_000) + " mln";
+            return shortNumber(dollars / 1_000_000) + " mln";
         }
         if (dollars >= 1_000) {
-            return formatShort(dollars / 1_000) + " tys.";
+            return shortNumber(dollars / 1_000) + " tys.";
         }
     
-        return String.format(java.util.Locale.ROOT, "$%.2f", dollars);
+        return String.format(
+            java.util.Locale.ROOT, "$%.2f", dollars
+        );
     }
     
-    private static String formatShort(double value) {
+    private static String shortNumber(double value) {
         String result = String.format(
             java.util.Locale.ROOT, "%.1f", value
         );
+    
         if (result.endsWith(".0")) {
             result = result.substring(0, result.length() - 2);
         }
+    
         return "$" + result.replace('.', ',');
     }
+
 
 }
