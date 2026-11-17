@@ -63,7 +63,11 @@ public final class SellMenu extends ChestMenu {
             ItemStack stack = basket.getItem(i);
             if (catalog.sellable(stack)) value += catalog.sale(stack) * stack.getCount();
         }
-        owner.displayClientMessage(Component.literal("§a/sell §7| W koszyku: §e" + MoneyFormat.format(value) + " §7| Zamknij, aby sprzedac"), true);
+        owner.connection.send(
+            new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+                Component.literal(message)
+            )
+        );
     }
     @Override public void removed(Player player) {
         if (settled) return;
