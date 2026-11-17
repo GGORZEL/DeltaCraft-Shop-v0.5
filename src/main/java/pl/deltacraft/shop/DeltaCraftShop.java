@@ -80,6 +80,7 @@ public final class DeltaCraftShop implements ModInitializer {
         d.register(Commands.literal("skarbiec").requires(source -> source.permissions().hasPermission(
                                                                         net.minecraft.server.permissions.Permissions.COMMANDS_ADMIN
                                                                     )
+                                                                 )
         
         d.register(Commands.literal("pay")
             .then(Commands.argument("gracz", StringArgumentType.word())
