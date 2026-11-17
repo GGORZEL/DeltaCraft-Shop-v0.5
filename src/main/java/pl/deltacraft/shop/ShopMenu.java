@@ -17,20 +17,22 @@ public final class ShopMenu extends ChestMenu {
     private final ServerPlayer owner;
     private final PlayerAccount account;
     private final ShopCatalog catalog;
+    private final Treasury treasury;
     private int category = -1, page = 0, quantity = 1;
     private ItemStack selected = ItemStack.EMPTY;
     private String noticeText = "";
     private final Map<Integer, ItemStack> visible = new HashMap<>();
 
-    public ShopMenu(int id, Inventory inventory, ServerPlayer owner, PlayerAccount account, ShopCatalog catalog) {
-        this(id, inventory, owner, account, catalog, new SimpleContainer(54));
+    public ShopMenu(int id, Inventory inventory, ServerPlayer owner, PlayerAccount account, ShopCatalog catalog, Treasury treasury) {
+        this(id, inventory, owner, account, catalog, treasury, new SimpleContainer(54));
     }
-    private ShopMenu(int id, Inventory inventory, ServerPlayer owner, PlayerAccount account, ShopCatalog catalog, SimpleContainer icons) {
+    private ShopMenu(int id, Inventory inventory, ServerPlayer owner, PlayerAccount account, ShopCatalog catalog, Treasury treasury, SimpleContainer icons) {
         super(MenuType.GENERIC_9x6, id, inventory, icons, 6);
         this.icons = icons;
         this.owner = owner;
         this.account = account;
         this.catalog = catalog;
+        this.treasury = treasury;
         for (int i = 0; i < 54; i++) {
             final int index = i;
             this.slots.set(i, new Slot(icons, index, 8 + index % 9 * 18, 18 + index / 9 * 18) {
@@ -143,7 +145,8 @@ public final class ShopMenu extends ChestMenu {
     private void buy() {
         long unit = catalog.price(selected);
         long total = unit * quantity;
-        if (account.cents < total) { info("§cZa malo pieniedzy: " + dollars(total)); return; }
+        long tax = Treasury.purchaseTax(total);
+        if (account.cents < total + tax || !treasury.canDeposit(tax)) { info("§cZa malo pieniedzy: " + dollars(total)); return; }
         int capacity = 0;
         ItemStack sample = selected.copy();
         sample.setCount(1);
@@ -164,8 +167,9 @@ public final class ShopMenu extends ChestMenu {
             }
             left -= count;
         }
-        account.cents -= total;
-        info("§aKupiono " + quantity + " za " + dollars(total));
+        account.cents -= total + tax;
+        treasury.deposit(tax);
+        info("§aKupiono " + quantity + " za " + dollars(total) + " + podatek " + dollars(tax));
     }
     private void sell(ItemStack item, boolean all) {
         int available = 0;
@@ -176,6 +180,13 @@ public final class ShopMenu extends ChestMenu {
         int amount = all ? available : Math.min(1, available);
         if (amount == 0) { info("§cBrak zwyklych przedmiotow do sprzedazy"); return; }
         long revenue = catalog.sale(item) * amount;
+        long full = catalog.price(item) * amount;
+        long tax = Treasury.saleTax(revenue);
+        long reserve = Treasury.saleReserve(full);
+        long treasuryGain = tax + reserve;
+        if (!treasury.canDeposit(treasuryGain) || account.cents > Treasury.LIMIT - (revenue - tax)) {
+            info("§cLimit konta lub skarbca"); return;
+        }
         int left = amount;
         for (int i = 0; i < owner.getInventory().getContainerSize() && left > 0; i++) {
             ItemStack s = owner.getInventory().getItem(i);
@@ -184,10 +195,11 @@ public final class ShopMenu extends ChestMenu {
             s.shrink(count);
             left -= count;
         }
-        account.cents = Math.min(1_000_000_000_000_000L, account.cents + revenue);
-        info("§aSprzedano " + amount + " za " + dollars(revenue));
+        account.cents += revenue - tax;
+        treasury.deposit(treasuryGain);
+        info("§aSprzedano " + amount + " za " + dollars(revenue - tax) + " §7(podatek: " + dollars(tax) + ")");
     }
-    private String dollars(long cents) { return String.format(Locale.ROOT, "$%.2f", cents / 100d); }
+    private String dollars(long cents) { return MoneyFormat.format(cents); }
     @Override public ItemStack quickMoveStack(Player player, int index) { return ItemStack.EMPTY; }
     @Override public boolean canTakeItemForPickAll(ItemStack stack, Slot slot) { return false; }
     @Override public boolean canDragTo(Slot slot) { return slot.index >= 54; }

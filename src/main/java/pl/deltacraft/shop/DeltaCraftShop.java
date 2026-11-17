@@ -21,48 +21,34 @@ import java.nio.file.Path;
 public final class DeltaCraftShop implements ModInitializer {
     private static Accounts accounts;
     private static ShopCatalog catalog;
+    private static Treasury treasury;
     private static int saveTicks;
     @Override public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             Path path = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("deltacraft-shop");
             accounts = new Accounts(path.resolve("accounts"));
             catalog = new ShopCatalog(path.resolve("prices.properties"));
+            treasury = new Treasury(path.resolve("treasury.properties"));
         });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> { if (accounts != null) accounts.saveAll(); });
-        
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> { if (accounts != null) accounts.saveAll(); if (treasury != null) treasury.save(); });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             saveTicks++;
-        
-            // Odświeżanie paska co 20 ticków (około 1 sekundy)
-            if (saveTicks % 20 == 0 && accounts != null) {
+            if (saveTicks % 50 == 0 && accounts != null) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     PlayerAccount account = accounts.get(player.getUUID());
-        
-                    String message = "§a✦ DeltaCraft ✦"
-                            + " §8| §e💰 §f" + account.shortMoney()
-                            + " §8| §b⛏ LVL §f" + account.level;
-        
-                    player.connection.send(
-                        new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
-                            Component.literal(message)
-                        )
-                    );
+                    player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+                        Component.literal("§a✦ DeltaCraft ✦ §8| §eSaldo: §f" + MoneyFormat.format(account.cents)
+                            + " §8| §b⛏ LVL §f" + account.level)));
                 }
             }
-        
-            // Zapisywanie kont co 1200 ticków
-            if (saveTicks >= 1200) {
-                saveTicks = 0;
-                if (accounts != null) accounts.saveAll();
-            }
+            if (saveTicks >= 1200) { saveTicks = 0; if (accounts != null) accounts.saveAll(); if (treasury != null) treasury.save(); }
         });
-
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, entity) -> {
             if (accounts == null || !(player instanceof ServerPlayer sp) || sp.isCreative() || sp.isSpectator()) return;
             PlayerAccount a = accounts.get(sp.getUUID());
             int before = a.level;
             a.addXp(MultiMine.miningXp(state.getBlock()));
-            if (a.level > before) showGuiNotice(sp, "§d[MultiMine] §aNowy poziom: " + a.level);
+            if (a.level > before) sp.sendSystemMessage(Component.literal("§d[MultiMine] §aNowy poziom: " + a.level));
             if (state.is(Blocks.STONE)) a.earnBaseDollars(1);
         });
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
@@ -91,6 +77,7 @@ public final class DeltaCraftShop implements ModInitializer {
         d.register(Commands.literal("multimine").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("mm").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("sell").executes(ctx -> openSell(ctx.getSource())));
+        d.register(Commands.literal("skarbiec").requires(source -> source.hasPermission(2)).executes(ctx -> openTreasury(ctx.getSource())));
         d.register(Commands.literal("pay")
             .then(Commands.argument("gracz", StringArgumentType.word())
             .then(Commands.argument("kwota", DoubleArgumentType.doubleArg(0.01))
@@ -101,7 +88,7 @@ public final class DeltaCraftShop implements ModInitializer {
         if (accounts == null || catalog == null) return 0;
         PlayerAccount a = accounts.get(player.getUUID());
         player.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                (id, inv, p) -> new ShopMenu(id, inv, player, a, catalog), Component.literal("DeltaCraft Shop")));
+                (id, inv, p) -> new ShopMenu(id, inv, player, a, catalog, treasury), Component.literal("DeltaCraft Shop")));
         return 1;
     }
     private static int openSell(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -109,55 +96,64 @@ public final class DeltaCraftShop implements ModInitializer {
         if (accounts == null || catalog == null) return 0;
         PlayerAccount a = accounts.get(player.getUUID());
         player.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                (id, inv, p) -> new SellMenu(id, inv, player, a, catalog), Component.literal("DeltaCraft - /sell (54 sloty)")));
+                (id, inv, p) -> new SellMenu(id, inv, player, a, catalog, treasury), Component.literal("DeltaCraft - /sell (54 sloty)")));
+        return 1;
+    }
+    public static boolean isTreasuryAdmin(ServerPlayer player) {
+        return player.createCommandSourceStack().hasPermission(2);
+    }
+    private static int openTreasury(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        if (!isTreasuryAdmin(player) || treasury == null || accounts == null) return 0;
+        player.openMenu(new net.minecraft.world.SimpleMenuProvider(
+            (id, inv, p) -> new TreasuryMenu(id, inv, player, accounts.get(player.getUUID()), accounts, treasury),
+            Component.literal("DeltaCraft - Skarbiec")));
         return 1;
     }
     private static int pay(CommandSourceStack source, String name, double amount) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer sender = source.getPlayerOrException();
-        if (accounts == null || !Double.isFinite(amount) || amount > 1_000_000_000_000d) return 0;
-        ServerPlayer recipient = source.getServer().getPlayerList().getPlayerByName(name);
+        if (accounts == null || treasury == null || !Double.isFinite(amount) || amount > 1_000_000_000_000d) return 0;
+        ServerPlayer recipient = sender.getServer().getPlayerList().getPlayerByName(name);
         if (recipient == null || recipient.getUUID().equals(sender.getUUID())) {
-            showGuiNotice(sender, "§cGracz musi byc online i nie mozesz wyslac do siebie."); return 0;
+            sender.displayClientMessage(Component.literal("§cGracz musi byc online i nie mozesz wyslac do siebie."), true); return 0;
         }
         long cents = Math.round(amount * 100d);
         if (cents <= 0) return 0;
         PlayerAccount from = accounts.get(sender.getUUID());
         PlayerAccount to = accounts.get(recipient.getUUID());
-        if (from.cents < cents || to.cents > 1_000_000_000_000_000L - cents) {
-            showGuiNotice(sender, "§cBrak srodkow lub limit konta odbiorcy."); return 0;
+        long tax = Treasury.purchaseTax(cents);
+        if (from.cents < cents + tax || to.cents > Treasury.LIMIT - cents || !treasury.canDeposit(tax)) {
+            sender.displayClientMessage(Component.literal("§cBrak srodkow lub limit konta odbiorcy."), true); return 0;
         }
-        from.cents -= cents;
+        from.cents -= cents + tax;
         to.cents += cents;
+        treasury.deposit(tax);
         accounts.saveAll();
         String value = String.format(java.util.Locale.ROOT, "$%.2f", cents / 100d);
-        showGuiNotice(sender, "§a[DeltaCraft] Przelano " + value + " do " + recipient.getName().getString());
-        showGuiNotice(recipient, "§a[DeltaCraft] Otrzymano " + value + " od " + sender.getName().getString());
+        sender.sendSystemMessage(Component.literal("§a[DeltaCraft] Przelano " + value + " do " + recipient.getName().getString() + " §7(podatek: " + MoneyFormat.format(tax) + ")"));
+        recipient.sendSystemMessage(Component.literal("§a[DeltaCraft] Otrzymano " + value + " od " + sender.getName().getString()));
         return 1;
-    }
-    /** Display on the HUD action bar, never in the chat history. */
-    private static void showGuiNotice(ServerPlayer player, String message) {
-        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(Component.literal(message)));
     }
     private static int showOtherBalance(CommandSourceStack source, String name) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(name);
+        ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(name);
         if (target == null || accounts == null) return 0;
-        showGuiNotice(player, "§a[DeltaCraft] " + name + ": " + accounts.get(target.getUUID()).shortMoney());
+        player.sendSystemMessage(Component.literal("§a[DeltaCraft] " + name + ": " + MoneyFormat.format(accounts.get(target.getUUID()).cents)));
         return 1;
     }
     private static int showBalance(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (accounts == null) return 0;
-        showGuiNotice(player, "§a[DeltaCraft] §fSaldo: §e" + accounts.get(player.getUUID()).shortMoney());
+        player.sendSystemMessage(Component.literal("§a[DeltaCraft] §fSaldo: §e" + MoneyFormat.format(accounts.get(player.getUUID()).cents)));
         return 1;
     }
     private static int showMultiMine(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (accounts == null) return 0;
         PlayerAccount a = accounts.get(player.getUUID());
-        showGuiNotice(player, "§a[MultiMine] §fPoziom: §e" + a.level
+        player.sendSystemMessage(Component.literal("§a[MultiMine] §fPoziom: §e" + a.level
                 + " §7| §fXP: §e" + a.xp + "/" + MultiMine.requiredXp(a.level)
-                + " §7| §fZarobki: §a×" + String.format(java.util.Locale.ROOT, "%.2f", MultiMine.earningsMultiplier(a.level)));
+                + " §7| §fZarobki: §a×" + String.format(java.util.Locale.ROOT, "%.2f", MultiMine.earningsMultiplier(a.level))));
         return 1;
     }
 }
