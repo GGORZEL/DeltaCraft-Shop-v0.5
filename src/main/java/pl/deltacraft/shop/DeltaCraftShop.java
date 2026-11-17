@@ -29,9 +29,34 @@ public final class DeltaCraftShop implements ModInitializer {
             catalog = new ShopCatalog(path.resolve("prices.properties"));
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> { if (accounts != null) accounts.saveAll(); });
+        
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (++saveTicks >= 1200) { saveTicks = 0; if (accounts != null) accounts.saveAll(); }
+            saveTicks++;
+        
+            // Odświeżanie paska co 20 ticków (około 1 sekundy)
+            if (saveTicks % 20 == 0 && accounts != null) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    PlayerAccount account = accounts.get(player.getUUID());
+        
+                    String message = "§a✦ DeltaCraft ✦"
+                            + " §8| §e💰 §f" + account.shortMoney()
+                            + " §8| §b⛏ LVL §f" + account.level;
+        
+                    player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+                            Component.literal(message)
+                        )
+                    );
+                }
+            }
+        
+            // Zapisywanie kont co 1200 ticków
+            if (saveTicks >= 1200) {
+                saveTicks = 0;
+                if (accounts != null) accounts.saveAll();
+            }
         });
+
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, entity) -> {
             if (accounts == null || !(player instanceof ServerPlayer sp) || sp.isCreative() || sp.isSpectator()) return;
             PlayerAccount a = accounts.get(sp.getUUID());
