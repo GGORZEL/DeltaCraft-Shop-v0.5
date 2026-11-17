@@ -77,6 +77,7 @@ public final class ShopMenu extends ChestMenu {
                 int idx = page * 45 + i;
                 if (idx >= entries.size()) break;
                 ItemStack item = entries.get(idx);
+                if (item.isEmpty()) continue;
                 put(i, item, "§b" + item.getHoverName().getString() + " §aKup: " + dollars(catalog.price(item)) + " §6Sprzedaz: " + dollars(catalog.sale(item)) + " §7[LPM kup / PPM sprzedaj]");
                 visible.put(i, item.copy());
             }
@@ -159,9 +160,7 @@ public final class ShopMenu extends ChestMenu {
             stack.setCount(count);
             if (!owner.getInventory().add(stack)) {
                 // The capacity check above should normally prevent this.
-                if (!stack.isEmpty()) {
-                    owner.getInventory().add(stack);
-                }
+                if (!stack.isEmpty()) owner.getInventory().add(stack);
             }
             left -= count;
         }
