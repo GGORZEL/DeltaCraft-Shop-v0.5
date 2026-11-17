@@ -60,7 +60,13 @@ public final class SellMenu extends ChestMenu {
         owner.displayClientMessage(Component.literal("§aSprzedano za " + money(revenue) + " | MultiMine XP: " + xp), true);
         // No super.removed(): vanilla chest removal would return already-sold contents.
     }
-    private static String money(long cents) { return String.format(Locale.ROOT, "$%.2f", cents / 100d); }
-    @Override public ItemStack quickMoveStack(Player player, int index) { return ItemStack.EMPTY; }
+    private static String money(long cents) { 
+        return String.format(Locale.ROOT, "$%.2f", cents / 100d); 
+    }
+    
+    @Override 
+    public ItemStack quickMoveStack(Player player, int index) { 
+        return ItemStack.EMPTY; 
+    }
 }
 
