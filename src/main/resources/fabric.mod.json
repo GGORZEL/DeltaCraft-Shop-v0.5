@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "deltacraft_shop",
+  "version": "${version}",
+  "name": "DeltaCraft Shop + MultiMine",
+  "description": "Ekonomia i MultiMine na serwer DeltaCraft",
+  "environment": "server",
+  "entrypoints": { "main": ["pl.deltacraft.shop.DeltaCraftShop"] },
+  "depends": { "fabricloader": ">=0.19.5", "minecraft": "26.3", "java": ">=25", "fabric-api": "*" }
+}
