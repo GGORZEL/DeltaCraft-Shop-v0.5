@@ -159,7 +159,9 @@ public final class ShopMenu extends ChestMenu {
             stack.setCount(count);
             if (!owner.getInventory().add(stack)) {
                 // The capacity check above should normally prevent this.
-                if (!stack.isEmpty()) owner.drop(stack, false);
+                if (!stack.isEmpty()) {
+                    owner.getInventory().add(stack);
+                }
             }
             left -= count;
         }
