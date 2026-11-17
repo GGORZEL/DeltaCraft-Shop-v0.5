@@ -77,11 +77,10 @@ public final class DeltaCraftShop implements ModInitializer {
         d.register(Commands.literal("multimine").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("mm").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("sell").executes(ctx -> openSell(ctx.getSource())));
-        d.register(Commands.literal("skarbiec").requires(source -> source.permissions().hasPermission(
-                                                                        net.minecraft.server.permissions.Permissions.COMMANDS_ADMIN
-                                                                    )
-                                                                 )
-        
+        d.register(Commands.literal("skarbiec")
+            .requires(source -> source.permissions().hasPermission(
+                net.minecraft.server.permissions.Permissions.COMMANDS_ADMIN))
+            .executes(ctx -> openTreasury(ctx.getSource())));
         d.register(Commands.literal("pay")
             .then(Commands.argument("gracz", StringArgumentType.word())
             .then(Commands.argument("kwota", DoubleArgumentType.doubleArg(0.01))
@@ -104,7 +103,8 @@ public final class DeltaCraftShop implements ModInitializer {
         return 1;
     }
     public static boolean isTreasuryAdmin(ServerPlayer player) {
-        return player.createCommandSourceStack().hasPermission(2);
+        return player.createCommandSourceStack().permissions().hasPermission(
+            net.minecraft.server.permissions.Permissions.COMMANDS_ADMIN);
     }
     private static int openTreasury(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
@@ -119,7 +119,7 @@ public final class DeltaCraftShop implements ModInitializer {
         if (accounts == null || treasury == null || !Double.isFinite(amount) || amount > 1_000_000_000_000d) return 0;
         ServerPlayer recipient = source.getServer().getPlayerList().getPlayerByName(name);
         if (recipient == null || recipient.getUUID().equals(sender.getUUID())) {
-            sender.displayClientMessage(Component.literal("§cGracz musi byc online i nie mozesz wyslac do siebie."), true); return 0;
+            sender.sendSystemMessage(Component.literal("§cGracz musi byc online i nie mozesz wyslac do siebie.")); return 0;
         }
         long cents = Math.round(amount * 100d);
         if (cents <= 0) return 0;
@@ -127,7 +127,7 @@ public final class DeltaCraftShop implements ModInitializer {
         PlayerAccount to = accounts.get(recipient.getUUID());
         long tax = Treasury.purchaseTax(cents);
         if (from.cents < cents + tax || to.cents > Treasury.LIMIT - cents || !treasury.canDeposit(tax)) {
-            sender.displayClientMessage(Component.literal("§cBrak srodkow lub limit konta odbiorcy."), true); return 0;
+            sender.sendSystemMessage(Component.literal("§cBrak srodkow lub limit konta odbiorcy.")); return 0;
         }
         from.cents -= cents + tax;
         to.cents += cents;
@@ -140,7 +140,7 @@ public final class DeltaCraftShop implements ModInitializer {
     }
     private static int showOtherBalance(CommandSourceStack source, String name) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(name);
+        ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(name);
         if (target == null || accounts == null) return 0;
         player.sendSystemMessage(Component.literal("§a[DeltaCraft] " + name + ": " + MoneyFormat.format(accounts.get(target.getUUID()).cents)));
         return 1;
