@@ -108,7 +108,9 @@ public final class ShopCatalog {
         if (stack.has(DataComponents.POTION_CONTENTS)) {
             PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
             if (contents != null && contents.potion().isPresent()) {
-                String name = contents.potion().get().unwrapKey().map(k -> k.location().getPath()).orElse("");
+                String name = contents.potion().get().unwrapKey()
+                        .map(k -> k.identifier().getPath())
+                        .orElse("");
                 if (name.startsWith("strong_")) return 1000000L;
                 if (name.startsWith("long_")) return 750000L;
                 return 500000L;
