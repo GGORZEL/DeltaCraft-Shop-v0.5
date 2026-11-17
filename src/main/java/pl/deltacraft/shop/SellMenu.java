@@ -94,13 +94,18 @@ public final class SellMenu extends ChestMenu {
             if (stack.isEmpty()) continue;
             if (!valid || !catalog.sellable(stack)) {
                 // Use vanilla inventory insertion; return any remainder to the player.
-                owner.getInventory().add(stack);
-                if (!stack.isEmpty()) owner.getInventory().add(stack);
-            }
-        }
-        owner.displayClientMessage(Component.literal(valid
-            ? "§a[DeltaCraft] Sprzedano za " + MoneyFormat.format(revenue - tax) + " §7(podatek: " + MoneyFormat.format(tax) + ")"
-            : "§c[DeltaCraft] Sprzedaz anulowana: limit konta lub skarbca"), true);
+                owner.connection.send(
+                    new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+                        Component.literal(
+                            valid
+                                ? "§a[DeltaCraft] Sprzedano za "
+                                    + MoneyFormat.format(revenue - tax)
+                                    + " §7(podatek: "
+                                    + MoneyFormat.format(tax) + ")"
+                                : "§c[DeltaCraft] Nie udalo sie sprzedac przedmiotow."
+                        )
+                    )
+                );
     }
 
 }
