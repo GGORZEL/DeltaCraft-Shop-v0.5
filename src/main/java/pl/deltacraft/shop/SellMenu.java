@@ -107,5 +107,5 @@ public final class SellMenu extends ChestMenu {
                     )
                 );
     }
-
 }
+    
