@@ -49,7 +49,7 @@ public final class SellMenu extends ChestMenu {
             if (stack.isEmpty()) continue;
             if (!catalog.sellable(stack)) {
                 // Invalid or custom stacks must never be destroyed.
-                owner.getInventory().placeItemBackInInventory(stack);
+                owner.getInventory().add(stack);
                 continue;
             }
             revenue += catalog.sale(stack.getItem()) * stack.getCount();
