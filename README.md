@@ -31,3 +31,4 @@
 - Shift+LPM: brak akcji.
 - Sprzedaż zawsze 80% ceny sklepowej, bez mnożnika MultiMine; XP za sprzedaż zależne od rodzaju bloku.
 - Wszystkie bloki możliwe do zdobycia w Survivalu; ceny w konfiguracji.
+asdas
