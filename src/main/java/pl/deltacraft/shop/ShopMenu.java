@@ -77,9 +77,9 @@ public final class ShopMenu extends ChestMenu {
                 put(i, item, "§b" + new ItemStack(item).getHoverName().getString() + " §aKup: " + dollars(catalog.price(item)) + " §6Sprzedaz: " + dollars(catalog.sale(item)) + " §7[LPM kup / PPM sprzedaj]");
                 visible.put(i, item);
             }
-            put(45, Items.ARROW, "§ePoprzednia strona");
+            put(48, Items.ARROW, "§ePoprzednia strona");
             put(49, Items.BARRIER, "§cKategorie");
-            put(53, Items.ARROW, "§eNastepna strona");
+            put(50, Items.ARROW, "§eNastepna strona");
         }
         if (!noticeText.isEmpty()) {
             ItemStack notice = new ItemStack(Items.PAPER);
