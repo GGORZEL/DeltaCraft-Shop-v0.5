@@ -63,11 +63,9 @@ public final class SellMenu extends ChestMenu {
             ItemStack stack = basket.getItem(i);
             if (catalog.sellable(stack)) value += catalog.sale(stack) * stack.getCount();
         }
-        owner.connection.send(
-            new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
-                Component.literal(message)
-            )
-        );
+        owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+            Component.literal("§a/sell §7| W koszyku: §e" + MoneyFormat.format(value) + " §7| Zamknij, aby sprzedac")
+        ));
     }
     @Override public void removed(Player player) {
         if (settled) return;
@@ -94,18 +92,15 @@ public final class SellMenu extends ChestMenu {
             if (stack.isEmpty()) continue;
             if (!valid || !catalog.sellable(stack)) {
                 // Use vanilla inventory insertion; return any remainder to the player.
-                owner.connection.send(
-                    new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
-                        Component.literal(
-                            valid
-                                ? "§a[DeltaCraft] Sprzedano za "
-                                    + MoneyFormat.format(revenue - tax)
-                                    + " §7(podatek: "
-                                    + MoneyFormat.format(tax) + ")"
-                                : "§c[DeltaCraft] Nie udalo sie sprzedac przedmiotow."
-                        )
-                    )
-                );
+                owner.getInventory().add(stack);
+                
+            }
+        }
+        owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+            Component.literal(valid
+                ? "§a[DeltaCraft] Sprzedano za " + MoneyFormat.format(revenue - tax) + " §7(podatek: " + MoneyFormat.format(tax) + ")"
+                : "§c[DeltaCraft] Sprzedaz anulowana: limit konta lub skarbca")
+        ));
     }
+
 }
-    
