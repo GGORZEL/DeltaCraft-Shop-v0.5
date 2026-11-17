@@ -155,7 +155,7 @@ public final class ShopMenu extends ChestMenu {
             ItemStack stack = new ItemStack(selected, count);
             if (!owner.getInventory().add(stack)) {
                 // Unexpected inventory change: return remaining items to player.
-                owner.getInventory().placeItemBackInInventory(stack);
+                owner.getInventory().add(stack);
             }
             left -= count;
         }
