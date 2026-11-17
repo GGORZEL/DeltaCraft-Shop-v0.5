@@ -117,13 +117,13 @@ public final class DeltaCraftShop implements ModInitializer {
         ServerPlayer player = source.getPlayerOrException();
         ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(name);
         if (target == null || accounts == null) return 0;
-        showGuiNotice(player, "§a[DeltaCraft] " + name + ": " + accounts.get(target.getUUID()).money());
+        showGuiNotice(player, "§a[DeltaCraft] " + name + ": " + accounts.get(target.getUUID()).shortMoney());
         return 1;
     }
     private static int showBalance(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (accounts == null) return 0;
-        showGuiNotice(player, "§a[DeltaCraft] §fSaldo: §e" + accounts.get(player.getUUID()).money());
+        showGuiNotice(player, "§a[DeltaCraft] §fSaldo: §e" + accounts.get(player.getUUID()).shortMoney());
         return 1;
     }
     private static int showMultiMine(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
