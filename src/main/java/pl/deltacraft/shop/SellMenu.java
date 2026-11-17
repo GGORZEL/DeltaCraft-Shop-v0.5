@@ -63,4 +63,4 @@ public final class SellMenu extends ChestMenu {
     private static String money(long cents) { return String.format(Locale.ROOT, "$%.2f", cents / 100d); }
     @Override public ItemStack quickMoveStack(Player player, int index) { return ItemStack.EMPTY; }
 }
-s
+
