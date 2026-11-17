@@ -77,7 +77,10 @@ public final class DeltaCraftShop implements ModInitializer {
         d.register(Commands.literal("multimine").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("mm").executes(ctx -> showMultiMine(ctx.getSource())));
         d.register(Commands.literal("sell").executes(ctx -> openSell(ctx.getSource())));
-        d.register(Commands.literal("skarbiec").requires(source -> source.hasPermission(2)).executes(ctx -> openTreasury(ctx.getSource())));
+        d.register(Commands.literal("skarbiec").requires(source -> source.permissions().hasPermission(
+                                                                        net.minecraft.server.permissions.Permissions.COMMANDS_ADMIN
+                                                                    )
+        
         d.register(Commands.literal("pay")
             .then(Commands.argument("gracz", StringArgumentType.word())
             .then(Commands.argument("kwota", DoubleArgumentType.doubleArg(0.01))
@@ -113,7 +116,7 @@ public final class DeltaCraftShop implements ModInitializer {
     private static int pay(CommandSourceStack source, String name, double amount) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer sender = source.getPlayerOrException();
         if (accounts == null || treasury == null || !Double.isFinite(amount) || amount > 1_000_000_000_000d) return 0;
-        ServerPlayer recipient = sender.getServer().getPlayerList().getPlayerByName(name);
+        ServerPlayer recipient = source.getServer().getPlayerList().getPlayerByName(name);
         if (recipient == null || recipient.getUUID().equals(sender.getUUID())) {
             sender.displayClientMessage(Component.literal("§cGracz musi byc online i nie mozesz wyslac do siebie."), true); return 0;
         }
