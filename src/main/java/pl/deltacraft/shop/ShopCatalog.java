@@ -1,18 +1,21 @@
 package pl.deltacraft.shop;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.block.Block;
 import java.nio.file.*;
 import java.io.*;
 import java.util.*;
 
-/** All ordinary registered Minecraft items, with configurable buy prices in cents. */
 public final class ShopCatalog {
     public static final String[] CATEGORIES = {"Natura", "Budowlane", "Redstone", "Nether", "End", "Rudy", "Inne", "Narzedzia i zbroje", "Mikstury"};
     private final List<Item> items = new ArrayList<>();
+    private final List<ItemStack> potions = new ArrayList<>();
     private final Properties prices = new Properties();
     private final Path path;
 
@@ -27,7 +30,28 @@ public final class ShopCatalog {
             prices.putIfAbsent(id, Long.toString(defaultPriceDollars(id) * 100L));
         }
         items.sort(Comparator.comparing(i -> BuiltInRegistries.ITEM.getKey(i).toString()));
+        // Vanilla potion holders: standard, extended and level II.
+        addPotion(Potions.WATER);
+        addPotion(Potions.NIGHT_VISION); addPotion(Potions.LONG_NIGHT_VISION);
+        addPotion(Potions.INVISIBILITY); addPotion(Potions.LONG_INVISIBILITY);
+        addPotion(Potions.LEAPING); addPotion(Potions.LONG_LEAPING); addPotion(Potions.STRONG_LEAPING);
+        addPotion(Potions.FIRE_RESISTANCE); addPotion(Potions.LONG_FIRE_RESISTANCE);
+        addPotion(Potions.SWIFTNESS); addPotion(Potions.LONG_SWIFTNESS); addPotion(Potions.STRONG_SWIFTNESS);
+        addPotion(Potions.SLOWNESS); addPotion(Potions.LONG_SLOWNESS); addPotion(Potions.STRONG_SLOWNESS);
+        addPotion(Potions.WATER_BREATHING); addPotion(Potions.LONG_WATER_BREATHING);
+        addPotion(Potions.HEALING); addPotion(Potions.STRONG_HEALING);
+        addPotion(Potions.HARMING); addPotion(Potions.STRONG_HARMING);
+        addPotion(Potions.POISON); addPotion(Potions.LONG_POISON); addPotion(Potions.STRONG_POISON);
+        addPotion(Potions.REGENERATION); addPotion(Potions.LONG_REGENERATION); addPotion(Potions.STRONG_REGENERATION);
+        addPotion(Potions.STRENGTH); addPotion(Potions.LONG_STRENGTH); addPotion(Potions.STRONG_STRENGTH);
+        addPotion(Potions.WEAKNESS); addPotion(Potions.LONG_WEAKNESS);
+        addPotion(Potions.SLOW_FALLING); addPotion(Potions.LONG_SLOW_FALLING);
+        addPotion(Potions.TURTLE_MASTER); addPotion(Potions.LONG_TURTLE_MASTER); addPotion(Potions.STRONG_TURTLE_MASTER);
+        addPotion(Potions.LUCK);
         save();
+    }
+    private void addPotion(net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> potion) {
+        potions.add(PotionContents.createItemStack(Items.POTION, potion));
     }
     private boolean forbidden(String id) {
         String[] banned = {"command_block", "structure_block", "structure_void", "jigsaw", "barrier", "debug_stick", "light", "spawner", "bedrock", "end_portal", "nether_portal", "end_gateway", "moving_piston", "reinforced_deepslate", "knowledge_book", "petrified_oak_slab", "test_block", "test_instance_block"};
@@ -62,9 +86,10 @@ public final class ShopCatalog {
         if (s.equals("emerald")) return 2500;
         if (s.equals("ancient_debris")) return 20000;
         if (s.equals("netherite_ingot")) return 35000;
+        if (s.equals("netherite_block")) return 315000;
         if (s.equals("netherite_scrap")) return 7500;
         if (s.equals("dirt") || s.equals("cobblestone") || s.equals("netherrack")) return 5;
-        if (s.equals("potion")) return 5000;
+        if (s.equals("potion") || s.equals("splash_potion") || s.equals("lingering_potion")) return 5000;
         if (s.contains("diamond") || s.contains("emerald")) return 5000;
         if (s.contains("gold")) return 750;
         if (s.contains("iron")) return 500;
@@ -79,11 +104,28 @@ public final class ShopCatalog {
         try { return Math.max(500L, Long.parseLong(prices.getProperty(id, "10000"))); }
         catch (NumberFormatException e) { return 10000L; }
     }
+    public long price(ItemStack stack) {
+        if (stack.has(DataComponents.POTION_CONTENTS)) {
+            PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
+            if (contents != null && contents.potion().isPresent()) {
+                String name = contents.potion().get().unwrapKey().map(k -> k.location().getPath()).orElse("");
+                if (name.startsWith("strong_")) return 1000000L;
+                if (name.startsWith("long_")) return 750000L;
+                return 500000L;
+            }
+        }
+        return price(stack.getItem());
+    }
     public long price(Block block) { return price(block.asItem()); }
     public long sale(Item item) { return price(item) * 80L / 100L; }
+    public long sale(ItemStack stack) { return price(stack) * 80L / 100L; }
     public boolean sellable(ItemStack stack) {
         if (stack.isEmpty() || !items.contains(stack.getItem())) return false;
-        // Preserve any named, enchanted, filled or otherwise customized stacks.
+        if (stack.has(DataComponents.POTION_CONTENTS)) {
+            for (ItemStack potion : potions)
+                if (ItemStack.isSameItemSameComponents(stack, potion)) return true;
+            return false;
+        }
         return stack.getComponentsPatch().isEmpty();
     }
     public void save() {
@@ -93,7 +135,16 @@ public final class ShopCatalog {
     }
     public List<Item> category(int category) {
         List<Item> result = new ArrayList<>();
-        for (Item item : items) if (category(item) == category) result.add(item);
+        for (Item item : items) if (category(item) == category && category != 8) result.add(item);
+        return result;
+    }
+    public List<ItemStack> categoryStacks(int category) {
+        List<ItemStack> result = new ArrayList<>();
+        if (category == 8) {
+            for (ItemStack potion : potions) result.add(potion.copy());
+        } else {
+            for (Item item : category(category)) result.add(new ItemStack(item));
+        }
         return result;
     }
     public int category(Item item) {
